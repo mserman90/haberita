@@ -1,220 +1,28 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
+
 <head>
-    <title>G8 Live News Map</title>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <!-- Leaflet CSS -->
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <title>Hourly Updated News Map</title>
+    <!-- Include Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css"
+        integrity="sha512-xodZBNTC5n17Xt2atTPuE1HxjVMSvLVW9ocqUKLsCC5CXdbqCmblAshOMAS6/keqq/sMZMZ19scR4PsZChSR7A=="
+        crossorigin="" />
+    <!-- Include Leaflet JavaScript -->
+    <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"
+        integrity="sha512-XQoYMqMTK8LvdxXYG3nZ448hOEQiglfqkJs1NOQV44cWnUrBc8PkAOcXy20w0vlaXaVUearIOBhiXZ5V3ynxwA=="
+        crossorigin=""></script>
     <style>
-        body {
-            margin: 0;
-            padding: 20px;
-            font-family: Arial, sans-serif;
-            background-color: #f5f5f5;
-        }
-        
-        .container {
-            max-width: 1200px;
-            margin: 0 auto;
-        }
-
         #map {
             height: 600px;
-            border-radius: 8px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-        }
-
-        .news-popup {
-            background: white;
-            border-radius: 4px;
-            padding: 10px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
-            max-width: 300px;
-            font-size: 12px;
-            border-left: 4px solid #4CAF50;
-        }
-
-        .news-popup h4 {
-            margin: 0 0 5px 0;
-            font-size: 14px;
-            color: #333;
-        }
-
-        .news-popup .source {
-            margin-top: 5px;
-            font-size: 11px;
-            color: #888;
-        }
-
-        #update-time {
-            position: fixed;
-            bottom: 20px;
-            right: 20px;
-            background: rgba(255,255,255,0.9);
-            padding: 8px 15px;
-            border-radius: 4px;
-            font-size: 12px;
-            color: #666;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-            z-index: 1000;
-        }
-
-        .marker-pin {
-            width: 30px;
-            height: 30px;
-            border-radius: 50% 50% 50% 0;
-            background: #c30b82;
-            position: absolute;
-            transform: rotate(-45deg);
-            left: 50%;
-            top: 50%;
-            margin: -15px 0 0 -15px;
-        }
-
-        .custom-div-icon {
-            background: none;
-            border: none;
         }
     </style>
 </head>
+
 <body>
-    <div class="container">
-        <div id="map"></div>
-        <div id="update-time"></div>
-    </div>
-
-    <!-- Leaflet JS -->
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    <script>
-        const API_KEY = 'ed5a64d631744bb693160fd70115c3b2';
-        
-        // G8 ülkeleri ve koordinatları
-        const G8_COUNTRIES = {
-            'us': { 
-                name: 'ABD', 
-                coords: [37.0902, -95.7129],
-                color: '#C8E6C9'
-            },
-            'gb': { 
-                name: 'İngiltere', 
-                coords: [54.2361, -2.3398],
-                color: '#B3E5FC'
-            },
-            'fr': { 
-                name: 'Fransa', 
-                coords: [46.2276, 2.2137],
-                color: '#FFE0B2'
-            },
-            'de': { 
-                name: 'Almanya', 
-                coords: [51.1657, 10.4515],
-                color: '#F8BBD0'
-            },
-            'it': { 
-                name: 'İtalya', 
-                coords: [41.8719, 12.5674],
-                color: '#E1BEE7'
-            },
-            'jp': { 
-                name: 'Japonya', 
-                coords: [36.2048, 138.2529],
-                color: '#FFCDD2'
-            },
-            'ca': { 
-                name: 'Kanada', 
-                coords: [56.1304, -106.3468],
-                color: '#B2DFDB'
-            },
-            'ru': { 
-                name: 'Rusya', 
-                coords: [61.5240, 105.3188],
-                color: '#D7CCC8'
-            }
-        };
-
-        let markers = {};
-        let map;
-
-        // Haritayı başlat
-        function initMap() {
-            map = L.map('map').setView([45, 0], 2);
-            
-            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-                attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-            }).addTo(map);
-        }
-
-        async function fetchCountryNews(countryCode) {
-            try {
-                const response = await fetch(
-                    `https://newsapi.org/v2/top-headlines?` +
-                    `country=${countryCode}&` +
-                    `pageSize=1&` +
-                    `apiKey=${API_KEY}`
-                );
-
-                if (!response.ok) throw new Error('API isteği başarısız oldu');
-
-                const data = await response.json();
-                return data.articles[0];
-            } catch (error) {
-                console.error(`${countryCode} için haber alınırken hata:`, error);
-                return null;
-            }
-        }
-
-        function createNewsMarker(news, country, countryCode) {
-            if (!news) return;
-
-            // Eski markeri kaldır
-            if (markers[countryCode]) {
-                map.removeLayer(markers[countryCode]);
-            }
-
-            const popupContent = `
-                <div class="news-popup">
-                    <h4>${news.title}</h4>
-                    <div class="source">
-                        ${country.name} - ${news.source.name}
-                    </div>
-                </div>
-            `;
-
-            const marker = L.marker(country.coords, {
-                icon: L.divIcon({
-                    className: 'custom-div-icon',
-                    html: `<div class="marker-pin" style="background: ${country.color}"></div>`,
-                    iconSize: [30, 42],
-                    iconAnchor: [15, 42]
-                })
-            }).addTo(map);
-
-            marker.bindPopup(popupContent);
-            marker.openPopup();
-
-            markers[countryCode] = marker;
-        }
-
-        async function updateAllNews() {
-            const now = new Date().toLocaleString();
-            document.getElementById('update-time').textContent = `Son Güncelleme: ${now}`;
-
-            for (const [code, country] of Object.entries(G8_COUNTRIES)) {
-                const news = await fetchCountryNews(code);
-                if (news) {
-                    createNewsMarker(news, country, code);
-                }
-            }
-        }
-
-        // Sayfa yüklendiğinde
-        window.addEventListener('load', () => {
-            initMap();
-            updateAllNews();
-            // Her 5 dakikada bir güncelle
-            setInterval(updateAllNews, 5 * 60 * 1000);
-        });
-    </script>
+    <div id="map"></div>
+    <script src="script.js"></script>
 </body>
+
 </html>
